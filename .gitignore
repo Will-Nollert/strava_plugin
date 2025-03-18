@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build
+/dist
+/builds
+
+# Private key
+key.pem
+
+# Testing
+/coverage
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS specific
+.DS_Store
+Thumbs.db

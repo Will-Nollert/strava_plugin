@@ -1,0 +1,31 @@
+{
+  "name": "strava-plugin",
+  "version": "0.1.0",
+  "description": "A Chrome extension for Strava",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint src",
+    "convert-icons": "node scripts/convert-icons.js",
+    "prebuild": "npm run convert-icons",
+    "prebuild:dev": "npm run convert-icons",
+    "build": "webpack --mode=production",
+    "build:dev": "webpack --mode=development",
+    "package": "node scripts/package.js",
+    "prepush": "npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "babel-loader": "^10.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "crx": "^5.0.1",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "jest": {
+    "testEnvironment": "jsdom"
+  }
+}

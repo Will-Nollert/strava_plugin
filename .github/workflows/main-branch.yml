@@ -1,0 +1,70 @@
+name: Main Branch CI/CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension (production)
+        run: npm run build
+
+      - name: Create extension key file
+        if: success()
+        run: |
+          echo "${{ secrets.EXTENSION_PRIVATE_KEY }}" > key.pem
+        shell: bash
+
+      - name: Package extension as .crx
+        if: success()
+        run: npm run package
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-prod-build
+          path: dist/
+          retention-days: 30
+
+      - name: Upload .crx file
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-crx-package
+          path: builds/*.crx
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: builds/*.crx
+          name: Release ${{ github.run_number }}
+          tag_name: v0.1.${{ github.run_number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

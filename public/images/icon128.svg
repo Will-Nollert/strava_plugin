@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background circle -->
+  <circle cx="64" cy="64" r="64" fill="#FC4C02" />
+  
+  <!-- Stylized "S" letter -->
+  <path d="M40 45C40 36 50 32 64 32C78 32 88 39 88 50C88 61 78 66 64 70C50 74 40 79 40 90C40 101 50 108 64 108C78 108 88 101 88 92" 
+        stroke="white" 
+        fill="none" 
+        stroke-width="10" 
+        stroke-linecap="round" />
+</svg>
