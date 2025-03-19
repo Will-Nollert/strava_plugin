@@ -6,7 +6,11 @@ on:
       - main
     paths:
       - "backend/**"
-      - ".github/workflows/deploy-backend.yml"
+      - ".github/workflows/deploy-backend.yml"\
+      
+premissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   deploy:
@@ -84,4 +88,4 @@ jobs:
           # GitHub CLI to update the secret
           echo "${{ steps.get-api-url.outputs.api-url }}" | gh secret set AUTH_PROXY_URL
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
