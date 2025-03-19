@@ -88,4 +88,4 @@ jobs:
           # GitHub CLI to update the secret
           echo "${{ steps.get-api-url.outputs.api-url }}" | gh secret set AUTH_PROXY_URL
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
