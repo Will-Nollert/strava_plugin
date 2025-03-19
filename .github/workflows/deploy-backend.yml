@@ -47,6 +47,16 @@ jobs:
           cd backend
           sam build --use-container
 
+      - name: Roll back failed stack if needed
+        run: |
+          STACK_STATUS=$(aws cloudformation describe-stacks --stack-name strava-plugin-oauth-proxy --query "Stacks[0].StackStatus" --output text || echo "DOES_NOT_EXIST")
+              if [ "$STACK_STATUS" = "UPDATE_FAILED" ]; then
+                echo "Rolling back failed stack..."
+                aws cloudformation rollback-stack --stack-name strava-plugin-oauth-proxy
+                echo "Waiting for rollback to complete..."
+                aws cloudformation wait stack-rollback-complete --stack-name strava-plugin-oauth-proxy
+              fi
+
       - name: Deploy with SAM
         run: |
           cd backend
