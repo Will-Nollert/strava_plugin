@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - 'backend/**'
-      - '.github/workflows/deploy-backend.yml'
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,29 +19,34 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' 
-          
+          node-version: "20"
+
       - name: Setup Python for SAM CLI
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-          
+          python-version: "3.9"
+
       - name: Install SAM CLI
         run: |
           pip install aws-sam-cli
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-          
+
       - name: Install backend dependencies
         run: |
           cd backend
-          npm ci
-          
+          npm ci --production
+
+      - name: Build with SAM
+        run: |
+          cd backend
+          sam build --use-container
+
       - name: Deploy with SAM
         run: |
           cd backend
@@ -52,7 +57,7 @@ jobs:
             --no-confirm-changeset \
             --parameter-overrides "StravaClientSecret=${{ secrets.STRAVA_CLIENT_SECRET }}" \
             --resolve-s3
-              
+
       - name: Get API Gateway URL
         id: get-api-url
         run: |
@@ -62,7 +67,7 @@ jobs:
             --output text)
           echo "API_URL=$API_URL" >> $GITHUB_ENV
           echo "::set-output name=api-url::$API_URL"
-          
+
       - name: Update API URL secret
         run: |
           echo "Updating AUTH_PROXY_URL secret with: ${{ steps.get-api-url.outputs.api-url }}"
