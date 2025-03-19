@@ -51,6 +51,7 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --parameter-overrides "StravaClientSecret=${{ secrets.STRAVA_CLIENT_SECRET }}"
+            --resolve-s3
               
       - name: Get API Gateway URL
         id: get-api-url
