@@ -31,7 +31,7 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: index.handler
-      Runtime: nodejs16.x
+      Runtime: nodejs20.x
       Timeout: 30
       MemorySize: 128
       Environment:
