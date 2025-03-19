@@ -67,7 +67,7 @@ This project uses GitHub Actions for continuous integration and delivery:
 1. Download the latest .crx file from the [Releases page](https://github.com/yourusername/strava_plugin/releases)
 2. Open Chrome and go to `chrome://extensions/`
 3. Enable "Developer mode"
-4. Drag and drop the .crx file onto the extensions page
+4. Drag and drop the .crx file onto the extensions page.
 
 ## Project Structure
 
