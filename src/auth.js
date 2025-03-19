@@ -35,6 +35,11 @@ function getAuthorizationCode() {
     authUrl.searchParams.append("response_type", CONFIG.RESPONSE_TYPE);
     authUrl.searchParams.append("scope", CONFIG.OAUTH_SCOPE);
 
+    // Log the redirect URL and full auth URL for debugging
+    console.log("Chrome extension redirect URL:", CONFIG.REDIRECT_URL);
+    console.log("Full auth URL:", authUrl.toString());
+    console.log("Client ID being used:", CONFIG.STRAVA_CLIENT_ID);
+
     // Use chrome.identity API to launch the auth flow in a popup
     chrome.identity.launchWebAuthFlow(
       {
@@ -43,11 +48,13 @@ function getAuthorizationCode() {
       },
       (redirectUrl) => {
         if (chrome.runtime.lastError) {
+          console.error("Chrome runtime error:", chrome.runtime.lastError);
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
 
         if (!redirectUrl) {
+          console.error("Authorization failed. No redirect URL returned.");
           reject(new Error("Authorization failed. No redirect URL returned."));
           return;
         }
@@ -58,21 +65,26 @@ function getAuthorizationCode() {
         const error = url.searchParams.get("error");
 
         if (error) {
+          console.error("Authorization error from Strava:", error);
           reject(new Error(`Authorization error: ${error}`));
           return;
         }
 
         if (!code) {
+          console.error(
+            "No authorization code found in redirect URL:",
+            redirectUrl
+          );
           reject(new Error("No authorization code found in the redirect URL."));
           return;
         }
 
+        console.log("Successfully received auth code from Strava");
         resolve(code);
       }
     );
   });
 }
-
 /**
  * Exchanges an authorization code for access and refresh tokens using the secure backend proxy
  * @param {string} authCode - The authorization code from Strava
