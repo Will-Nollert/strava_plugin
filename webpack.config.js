@@ -1,19 +1,20 @@
-const path = require('path');
-const CopyPlugin = require('copy-webpack-plugin');
+const path = require("path");
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
   entry: {
-    popup: './src/popup.js'
+    popup: "./src/popup.js",
+    background: "./src/background.js",
   },
   output: {
-    path: path.resolve(__dirname, 'dist'),
-    filename: '[name].js'
+    path: path.resolve(__dirname, "dist"),
+    filename: "[name].js",
   },
   plugins: [
     new CopyPlugin({
       patterns: [
         { from: "public", to: "." },
-        { from: "manifest.json", to: "manifest.json" }
+        { from: "manifest.json", to: "manifest.json" },
       ],
     }),
   ],
@@ -23,12 +24,12 @@ module.exports = {
         test: /\.js$/,
         exclude: /node_modules/,
         use: {
-          loader: 'babel-loader',
+          loader: "babel-loader",
           options: {
-            presets: ['@babel/preset-env']
-          }
-        }
-      }
-    ]
-  }
+            presets: ["@babel/preset-env"],
+          },
+        },
+      },
+    ],
+  },
 };
