@@ -1,23 +1,179 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Strava Plugin</title>
-  <style>
-    body {
-      width: 300px;
-      height: 200px;
-      padding: 10px;
-      font-family: Arial, sans-serif;
-    }
-    h1 {
-      text-align: center;
-      color: #FC4C02; /* Strava orange */
-    }
-  </style>
-</head>
-<body>
-  <h1>Strava Plugin</h1>
-  <p>Hello World! This is a test extension.</p>
-  <script src="popup.js"></script>
-</body>
+  <head>
+    <title>Strava Plugin</title>
+    <style>
+      body {
+        width: 350px;
+        height: 500px;
+        padding: 16px;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        overflow-y: auto;
+      }
+
+      h1 {
+        text-align: center;
+        color: #fc4c02; /* Strava orange */
+        margin-top: 0;
+      }
+
+      button {
+        background-color: #fc4c02;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      button:hover {
+        background-color: #e34902;
+      }
+
+      button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+      }
+
+      .auth-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        margin: 32px 0;
+      }
+
+      .auth-status {
+        font-weight: bold;
+        margin: 8px 0;
+      }
+
+      .segment-list {
+        margin-top: 16px;
+      }
+
+      .segment-item {
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+
+      .segment-item:hover {
+        background-color: #f9f9f9;
+      }
+
+      .segment-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .segment-details {
+        font-size: 0.9em;
+        color: #666;
+      }
+
+      .profile-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .profile-image {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        margin-right: 12px;
+      }
+
+      .profile-info {
+        flex: 1;
+      }
+
+      .profile-name {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .loading {
+        text-align: center;
+        margin: 32px 0;
+        color: #666;
+      }
+
+      .error {
+        color: #d9534f;
+        padding: 8px;
+        background-color: #f9f2f2;
+        border-radius: 4px;
+        margin: 8px 0;
+      }
+
+      .action-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+      }
+
+      .footer {
+        margin-top: 16px;
+        padding-top: 8px;
+        border-top: 1px solid #eee;
+        font-size: 0.8em;
+        color: #999;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Strava Plugin</h1>
+
+    <!-- Authentication Section -->
+    <div id="auth-section">
+      <div class="auth-container">
+        <p class="auth-status" id="auth-status">Not logged in</p>
+        <button id="login-button">Login with Strava</button>
+        <button id="logout-button" style="display: none">Logout</button>
+      </div>
+    </div>
+
+    <!-- User Profile Section (hidden until logged in) -->
+    <div id="profile-section" style="display: none">
+      <div class="profile-container">
+        <img
+          id="profile-image"
+          class="profile-image"
+          src="images/icon48.png"
+          alt="Profile"
+        />
+        <div class="profile-info">
+          <div id="profile-name" class="profile-name">Athlete Name</div>
+          <div id="profile-details">Loading profile...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segments Section (hidden until logged in) -->
+    <div id="segments-section" style="display: none">
+      <h2>Starred Segments</h2>
+      <div id="segments-loading" class="loading">Loading segments...</div>
+      <div id="segments-error" class="error" style="display: none"></div>
+      <div id="segments-list" class="segment-list"></div>
+      <div class="action-buttons">
+        <button id="refresh-button">Refresh Segments</button>
+        <button id="download-gpx" disabled>Download GPX</button>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div id="version">Version: 0.1.0</div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
 </html>

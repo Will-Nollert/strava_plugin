@@ -1,0 +1,17 @@
+{
+  "name": "strava-plugin-oauth-proxy",
+  "version": "1.0.0",
+  "description": "Secure OAuth proxy for Strava Plugin Chrome extension",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "deploy": "sam deploy --guided"
+  },
+  "dependencies": {
+    "axios": "^0.24.0"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.1048.0",
+    "jest": "^27.4.5"
+  }
+}

@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Strava Plugin OAuth Proxy Service
+
+# Parameters you can customize during deployment
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+    Description: API Gateway stage name
+  StravaClientSecret:
+    Type: String
+    NoEcho: true
+    Description: Strava API Client Secret
+
+# Resources to create
+Resources:
+  # API Gateway for the OAuth Proxy
+  StravaApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref StageName
+      Cors:
+        AllowMethods: "'POST, OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'" # Restrict to your extension ID in production
+
+  # Lambda function to handle OAuth requests
+  StravaOAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: index.handler
+      Runtime: nodejs16.x
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          STRAVA_CLIENT_SECRET: !Ref StravaClientSecret
+      Events:
+        TokenExchange:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /token
+            Method: POST
+        TokenRefresh:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /refresh
+            Method: POST
+        OptionsToken:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /token
+            Method: OPTIONS
+        OptionsRefresh:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /refresh
+            Method: OPTIONS
+
+# Output values
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${StravaApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+  OAuthFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt StravaOAuthFunction.Arn

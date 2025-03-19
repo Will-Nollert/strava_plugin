@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Strava Plugin",
   "version": "0.1.0",
-  "description": "A Chrome extension for Strava",
+  "description": "A Chrome extension for Strava with OAuth integration",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -11,5 +11,13 @@
       "128": "images/icon128.png"
     }
   },
-  "permissions": []
+  "permissions": ["identity", "storage"],
+  "host_permissions": ["https://www.strava.com/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
 }
