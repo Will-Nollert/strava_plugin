@@ -1,0 +1,34 @@
+# Development files
+test/
+tests/
+*.test.js
+*.spec.js
+jest.config.js
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# Source control
+.git/
+.github/
+.gitignore
+
+# Development environments
+.idea/
+.vscode/
+*.sublime-*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Dependency directories that should be installed at deployment time
+node_modules/
+
+# Build artifacts
+dist/
+build/
+coverage/
