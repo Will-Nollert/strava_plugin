@@ -8,4 +8,6 @@ module.exports = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  transformIgnorePatterns: ["/node_modules/(?!(.+?)\\.js$)"],
+  moduleFileExtensions: ["js", "json", "jsx", "ts", "tsx", "node"],
 };

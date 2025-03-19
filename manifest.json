@@ -13,6 +13,12 @@
   },
   "permissions": ["identity", "storage"],
   "host_permissions": ["https://www.strava.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.strava.com/athlete/segments/starred"],
+      "js": ["contentScripts/starredSegments.js"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
