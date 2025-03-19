@@ -24,5 +24,7 @@ key.pem
 .DS_Store
 Thumbs.db
 
-#Secrets
-.env
+# SAM build artifacts
+.aws-sam/
+samconfig.tomlbackend/sam-cli-linux-x86_64.zip
+backend/dist/
