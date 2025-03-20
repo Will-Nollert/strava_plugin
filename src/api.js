@@ -173,6 +173,7 @@ function escapeXml(unsafe) {
 }
 
 export {
+  decodePolyline,
   getStarredSegments,
   getSegmentDetails,
   getAthleteProfile,
