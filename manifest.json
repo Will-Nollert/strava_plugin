@@ -12,7 +12,10 @@
     }
   },
   "permissions": ["identity", "storage"],
-  "host_permissions": ["https://www.strava.com/*"],
+  "host_permissions": [
+    "https://www.strava.com/*",
+    "https://api.openweathermap.org/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://www.strava.com/athlete/segments/starred"],

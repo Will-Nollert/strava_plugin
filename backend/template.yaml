@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Strava Plugin OAuth Proxy Service
+Description: Strava Plugin OAuth Proxy Service with Weather API Support
 
 # Parameters you can customize during deployment
 Parameters:
@@ -12,20 +12,24 @@ Parameters:
     Type: String
     NoEcho: true
     Description: Strava API Client Secret
+  OpenWeatherApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenWeatherMap API Key
 
 # Resources to create
 Resources:
-  # API Gateway for the OAuth Proxy
+  # API Gateway for the OAuth Proxy and Weather
   StravaApiGateway:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Ref StageName
       Cors:
-        AllowMethods: "'POST, OPTIONS'"
+        AllowMethods: "'GET, POST, OPTIONS'"
         AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'" # Restrict to your extension ID in production
 
-  # Lambda function to handle OAuth requests
+  # Lambda function to handle OAuth and Weather requests
   StravaOAuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -37,6 +41,7 @@ Resources:
       Environment:
         Variables:
           STRAVA_CLIENT_SECRET: !Ref StravaClientSecret
+          OPENWEATHER_API_KEY: !Ref OpenWeatherApiKey
       Events:
         TokenExchange:
           Type: Api
@@ -50,6 +55,12 @@ Resources:
             RestApiId: !Ref StravaApiGateway
             Path: /refresh
             Method: POST
+        WeatherProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /weather
+            Method: GET
         OptionsToken:
           Type: Api
           Properties:
@@ -61,6 +72,12 @@ Resources:
           Properties:
             RestApiId: !Ref StravaApiGateway
             Path: /refresh
+            Method: OPTIONS
+        OptionsWeather:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /weather
             Method: OPTIONS
 
 # Output values
