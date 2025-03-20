@@ -1,9 +1,17 @@
-// src/contentScripts/starredSegments.js - Content script for the Strava starred segments page
+// src/contentScripts/starredSegments.js
+import { getCurrentWeather } from "../services/weatherApi.js";
+import { analyzeWeather, AssistLevel } from "../services/weatherAnalysis.js";
+import { getSegmentWithCache } from "../services/segmentService.js";
 
 console.log("Strava Plugin: Content script loaded for starred segments page");
 
-// Function to add the weather assist column
-function addWeatherAssistColumn() {
+// Map to store weather data and analysis for segments
+const segmentWeatherMap = new Map();
+
+/**
+ * Function to add the weather assist column
+ */
+async function addWeatherAssistColumn() {
   // Get the table
   const table = document.querySelector("table.starred-segments");
   if (!table) {
@@ -19,8 +27,10 @@ function addWeatherAssistColumn() {
     headerRow.appendChild(weatherHeader);
   }
 
-  // Add data cells to each row
+  // Add data cells to each row with loading state
   const rows = table.querySelectorAll("tbody tr");
+  const segmentPromises = [];
+
   rows.forEach((row) => {
     // Extract segment ID from the row
     const segmentLink = row.querySelector("td:nth-child(3) a");
@@ -30,27 +40,126 @@ function addWeatherAssistColumn() {
       segmentId = href.split("/").pop();
     }
 
-    // Store segment ID as a data attribute for future use
-    // This will be used when we integrate the weather API
+    // Store segment ID as a data attribute
     const weatherCell = document.createElement("td");
     weatherCell.dataset.segmentId = segmentId;
-
-    // For now, just add sample text
-    // Later we'll replace this with actual weather data
-    const randomAssist = ["Favorable", "Neutral", "Unfavorable"][
-      Math.floor(Math.random() * 3)
-    ];
-    weatherCell.textContent = randomAssist;
-
-    // Add some styling based on the condition
-    if (randomAssist === "Favorable") {
-      weatherCell.style.color = "green";
-    } else if (randomAssist === "Unfavorable") {
-      weatherCell.style.color = "red";
-    }
+    weatherCell.textContent = "Loading...";
+    weatherCell.style.color = "gray";
+    weatherCell.style.fontStyle = "italic";
 
     row.appendChild(weatherCell);
+
+    // Add to promises for batch processing
+    if (segmentId) {
+      const promise = processSegmentWeather(segmentId)
+        .then((analysis) => {
+          // Update the cell with the analysis result
+          updateWeatherCell(weatherCell, analysis);
+        })
+        .catch((error) => {
+          console.error(`Error processing segment ${segmentId}:`, error);
+          weatherCell.textContent = "Analysis unavailable";
+          weatherCell.style.color = "gray";
+        });
+
+      segmentPromises.push(promise);
+    }
   });
+
+  // Wait for all segments to be processed
+  try {
+    await Promise.all(segmentPromises);
+    console.log("Strava Plugin: Weather analysis complete for all segments");
+  } catch (error) {
+    console.error("Error processing segments:", error);
+  }
+}
+
+/**
+ * Update a weather cell with analysis results
+ * @param {HTMLElement} cell - The table cell to update
+ * @param {Object} analysis - The weather analysis result
+ */
+function updateWeatherCell(cell, analysis) {
+  if (!analysis) {
+    cell.textContent = "No data";
+    cell.style.color = "gray";
+    return;
+  }
+
+  cell.textContent = analysis.level;
+  cell.title = analysis.message;
+  cell.style.fontStyle = "normal";
+
+  // Add tooltip with detailed info
+  cell.setAttribute("data-toggle", "tooltip");
+  cell.setAttribute("data-placement", "top");
+
+  // Style based on conditions
+  if (analysis.level === AssistLevel.FAVORABLE) {
+    cell.style.color = "green";
+  } else if (analysis.level === AssistLevel.UNFAVORABLE) {
+    cell.style.color = "red";
+  } else {
+    cell.style.color = "orange";
+  }
+}
+
+/**
+ * Process weather data for a segment
+ * @param {string} segmentId - The segment ID
+ * @returns {Promise<Object>} The weather analysis
+ */
+async function processSegmentWeather(segmentId) {
+  // Check if already processed
+  if (segmentWeatherMap.has(segmentId)) {
+    return segmentWeatherMap.get(segmentId);
+  }
+
+  try {
+    // Get segment details including location
+    const segment = await getSegmentWithCache(segmentId);
+
+    // If we need to extract coordinates from polyline
+    if (!segment.start_latlng && segment.map && segment.map.polyline) {
+      const coordinates = decodePolyline(segment.map.polyline);
+      if (coordinates.length > 0) {
+        segment.start_latlng = coordinates[0];
+
+        // Calculate rough direction if we have start and end points
+        if (coordinates.length > 1) {
+          segment.end_latlng = coordinates[coordinates.length - 1];
+
+          // Calculate direction (simplified calculation)
+          const [startLat, startLng] = coordinates[0];
+          const [endLat, endLng] = coordinates[coordinates.length - 1];
+          const deltaY = endLng - startLng;
+          const deltaX = endLat - startLat;
+          segment.direction = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+        }
+      }
+    }
+
+    // Get current weather for the segment location
+    let weather;
+    if (segment.start_latlng) {
+      const [lat, lng] = segment.start_latlng;
+      weather = await getCurrentWeather(lat, lng);
+    } else {
+      throw new Error("Segment location data not available");
+    }
+
+    // Analyze the weather conditions for this segment
+    const analysis = analyzeWeather(weather, segment);
+
+    // Cache the result
+    segmentWeatherMap.set(segmentId, analysis);
+
+    return analysis;
+  } catch (error) {
+    console.error(`Error getting weather for segment ${segmentId}:`, error);
+    return null;
+  }
 }
 
 // Execute when the page is fully loaded
@@ -78,9 +187,51 @@ const observer = new MutationObserver(function (mutations) {
 // Start observing the document with the configured parameters
 observer.observe(document.body, { childList: true, subtree: true });
 
+// Helper function to decode Google polylines
+function decodePolyline(encoded) {
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+  const coordinates = [];
+
+  while (index < len) {
+    let b;
+    let shift = 0;
+    let result = 0;
+
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+
+    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+
+    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    coordinates.push([lat * 1e-5, lng * 1e-5]);
+  }
+
+  return coordinates;
+}
+
 // Export functions for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     addWeatherAssistColumn,
+    processSegmentWeather,
+    updateWeatherCell,
   };
 }
