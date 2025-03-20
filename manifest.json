@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Strava Plugin",
-  "version": "0.1.0",
-  "description": "A Chrome extension for Strava with OAuth integration",
+  "version": "0.2.0",
+  "description": "A Chrome extension for Strava with weather insights for your segments",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -12,12 +12,9 @@
     }
   },
   "permissions": ["identity", "storage"],
-  "host_permissions": ["https://www.strava.com/*"],
-  "content_scripts": [
-    {
-      "matches": ["https://www.strava.com/athlete/segments/starred"],
-      "js": ["contentScripts/starredSegments.js"]
-    }
+  "host_permissions": [
+    "https://www.strava.com/*",
+    "https://api.openweathermap.org/*"
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
@@ -25,5 +22,12 @@
   "background": {
     "service_worker": "background.js",
     "type": "module"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.strava.com/*"],
+      "js": ["contentScripts/starredSegmentsWeather.js"],
+      "css": []
+    }
+  ]
 }
