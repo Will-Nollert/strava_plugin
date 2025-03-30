@@ -24,6 +24,15 @@ const CONFIG = {
 
   // Storage keys
   STORAGE_KEY: "strava_auth_data",
+  SETTINGS_KEY: "strava_plugin_settings",
+
+  // Default settings
+  DEFAULT_SETTINGS: {
+    useCache: true, // Use cache for API requests
+    weatherCacheDuration: 3600, // Weather cache duration in seconds
+    segmentCacheDuration: 604800, // Segment cache duration in seconds
+    inMemoryCaching: true, // Enable in-memory caching in the extension
+  },
 
   // Extension version
   VERSION: chrome.runtime?.getManifest()?.version || "dev",

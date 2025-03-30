@@ -5,6 +5,7 @@ module.exports = {
   entry: {
     popup: "./src/popup.js",
     background: "./src/background.js",
+    settings: "./src/settings.js",
     "contentScripts/starredSegments": "./src/contentScripts/starredSegments.js",
   },
   output: {

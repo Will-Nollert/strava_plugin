@@ -43,6 +43,13 @@ document.addEventListener("DOMContentLoaded", async function () {
     chrome.runtime.getManifest().version
   }`;
 
+  // Setup settings link
+  const settingsLink = document.getElementById("open-settings");
+  settingsLink.addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.runtime.openOptionsPage();
+  });
+
   // Get DOM elements
   authStatus = document.getElementById("auth-status");
   loginButton = document.getElementById("login-button");

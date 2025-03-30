@@ -16,9 +16,33 @@ Parameters:
     Type: String
     NoEcho: true
     Description: OpenWeatherMap API Key
+  WeatherCacheTTL:
+    Type: Number
+    Default: 3600
+    Description: Weather cache time-to-live in seconds (default 1 hour)
+  SegmentCacheTTL:
+    Type: Number
+    Default: 604800
+    Description: Segment cache time-to-live in seconds (default 1 week)
 
 # Resources to create
 Resources:
+  # DynamoDB table for API response caching
+  ApiCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "strava-plugin-cache-${StageName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: cacheKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: cacheKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiry
+        Enabled: true
+
   # API Gateway for the OAuth Proxy and Weather
   StravaApiGateway:
     Type: AWS::Serverless::Api
@@ -26,8 +50,8 @@ Resources:
       StageName: !Ref StageName
       Cors:
         AllowMethods: "'GET, POST, OPTIONS'"
-        AllowHeaders: "'Content-Type'"
-        AllowOrigin: "'*'" # Restrict to your extension ID in production
+        AllowHeaders: "'Content-Type, Authorization'"
+        AllowOrigin: "'chrome-extension://oidkimpnlebgbjmkmmploaoplogcflme'"
 
   # Lambda function to handle OAuth and Weather requests
   StravaOAuthFunction:
@@ -42,6 +66,21 @@ Resources:
         Variables:
           STRAVA_CLIENT_SECRET: !Ref StravaClientSecret
           OPENWEATHER_API_KEY: !Ref OpenWeatherApiKey
+          CACHE_TABLE_NAME: !Ref ApiCacheTable
+          WEATHER_CACHE_TTL: !Ref WeatherCacheTTL
+          SEGMENT_CACHE_TTL: !Ref SegmentCacheTTL
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ApiCacheTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - "dynamodb:GetItem"
+                - "dynamodb:PutItem"
+                - "dynamodb:DeleteItem"
+                - "dynamodb:Scan"
+                - "dynamodb:Query"
+              Resource: !GetAtt ApiCacheTable.Arn
       Events:
         TokenExchange:
           Type: Api
@@ -61,6 +100,12 @@ Resources:
             RestApiId: !Ref StravaApiGateway
             Path: /weather
             Method: GET
+        SegmentProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segment/{segmentId}
+            Method: GET
         OptionsToken:
           Type: Api
           Properties:
@@ -79,12 +124,9 @@ Resources:
             RestApiId: !Ref StravaApiGateway
             Path: /weather
             Method: OPTIONS
-
-# Output values
-Outputs:
-  ApiEndpoint:
-    Description: API Gateway endpoint URL
-    Value: !Sub "https://${StravaApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
-  OAuthFunctionArn:
-    Description: Lambda function ARN
-    Value: !GetAtt StravaOAuthFunction.Arn
+        OptionsSegment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segment/{segmentId}
+            Method: OPTIONS

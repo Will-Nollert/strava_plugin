@@ -1,8 +1,11 @@
 // AWS Lambda function to handle Strava OAuth and Weather API securely
 const axios = require("axios");
+const cacheService = require("./services/cacheService");
+const { handleSegmentRequest } = require("./handlers/segmentHandler");
 
 // Constants
 const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
+const STRAVA_API_BASE_URL = "https://www.strava.com/api/v3";
 const OPENWEATHER_CURRENT_URL =
   "https://api.openweathermap.org/data/3.0/onecall";
 const OPENWEATHER_HISTORICAL_URL =
@@ -12,9 +15,10 @@ const WEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 
 // Headers for CORS
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // Replace with your extension ID in production
+  "Access-Control-Allow-Origin":
+    "chrome-extension://oidkimpnlebgbjmkmmploaoplogcflme",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 // Simple CORS response for OPTIONS
@@ -28,8 +32,11 @@ const corsResponse = {
  * Main Lambda handler
  */
 exports.handler = async (event) => {
+  console.log("Received event:", JSON.stringify(event, null, 2));
+
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === "OPTIONS") {
+    console.log("Handling OPTIONS request with CORS headers:", corsHeaders);
     return corsResponse;
   }
 
@@ -44,6 +51,8 @@ exports.handler = async (event) => {
       return await handleTokenRefresh(JSON.parse(event.body || "{}"));
     } else if (path === "/weather") {
       return await handleWeatherRequest(event);
+    } else if (path.startsWith("/segment/")) {
+      return await handleSegmentRequest(event, corsHeaders);
     } else {
       return {
         statusCode: 404,
@@ -64,7 +73,6 @@ exports.handler = async (event) => {
     };
   }
 };
-
 /**
  * Handles initial token exchange
  */

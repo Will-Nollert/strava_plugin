@@ -1,7 +1,11 @@
 // src/services/segmentService.js
 import { getSegmentDetails, decodePolyline } from "../api.js";
+import {
+  getCachedSegmentDetails,
+  shouldUseCachedApi,
+} from "./stravaApiCache.js";
 
-// Cache for segment details to avoid repeated API calls
+// In-memory cache for segment details to avoid repeated API calls within a session
 const segmentCache = new Map();
 
 /**
@@ -10,13 +14,24 @@ const segmentCache = new Map();
  * @returns {Promise<Object>} Segment details
  */
 async function getSegmentWithCache(segmentId) {
-  // Check if segment is in cache
+  // Check if segment is in local memory cache
   if (segmentCache.has(segmentId)) {
+    console.log(`Using in-memory cache for segment ${segmentId}`);
     return segmentCache.get(segmentId);
   }
 
   try {
-    const segment = await getSegmentDetails(segmentId);
+    let segment;
+
+    // Determine whether to use backend cache API or direct Strava API
+    const useCache = await shouldUseCachedApi();
+    if (useCache) {
+      console.log(`Fetching segment ${segmentId} from backend cache`);
+      segment = await getCachedSegmentDetails(segmentId);
+    } else {
+      console.log(`Fetching segment ${segmentId} directly from Strava API`);
+      segment = await getSegmentDetails(segmentId);
+    }
 
     // Extract start and end points from polyline if available
     if (segment.map && segment.map.polyline) {
@@ -35,7 +50,7 @@ async function getSegmentWithCache(segmentId) {
       }
     }
 
-    // Cache the result
+    // Cache the result in memory
     segmentCache.set(segmentId, segment);
 
     return segment;
