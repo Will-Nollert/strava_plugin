@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Strava Plugin OAuth Proxy Service with Weather API Support
+Description: Strava Plugin OAuth Proxy Service with Weather API Support and Caching
 
 # Parameters you can customize during deployment
 Parameters:
@@ -16,6 +16,14 @@ Parameters:
     Type: String
     NoEcho: true
     Description: OpenWeatherMap API Key
+  SegmentCacheTTL:
+    Type: Number
+    Default: 604800 # 7 days in seconds
+    Description: Time to live for segment cache entries (in seconds)
+  WeatherCacheTTL:
+    Type: Number
+    Default: 3600 # 1 hour in seconds
+    Description: Time to live for weather cache entries (in seconds)
 
 # Resources to create
 Resources:
@@ -27,7 +35,7 @@ Resources:
       Cors:
         AllowMethods: "'GET, POST, OPTIONS'"
         AllowHeaders: "'Content-Type'"
-        AllowOrigin: "'*'" # Restrict to your extension ID in production
+        AllowOrigin: "'https://www.strava.com'"
 
   # Lambda function to handle OAuth and Weather requests
   StravaOAuthFunction:
@@ -42,6 +50,15 @@ Resources:
         Variables:
           STRAVA_CLIENT_SECRET: !Ref StravaClientSecret
           OPENWEATHER_API_KEY: !Ref OpenWeatherApiKey
+          SEGMENT_CACHE_TTL: !Ref SegmentCacheTTL
+          WEATHER_CACHE_TTL: !Ref WeatherCacheTTL
+          SEGMENT_CACHE_TABLE: !Ref SegmentCacheTable
+          WEATHER_CACHE_TABLE: !Ref WeatherCacheTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SegmentCacheTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref WeatherCacheTable
       Events:
         TokenExchange:
           Type: Api
@@ -61,6 +78,18 @@ Resources:
             RestApiId: !Ref StravaApiGateway
             Path: /weather
             Method: GET
+        SegmentProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segment/{segmentId}
+            Method: GET
+        StarredSegmentsProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segments/starred
+            Method: GET
         OptionsToken:
           Type: Api
           Properties:
@@ -79,6 +108,50 @@ Resources:
             RestApiId: !Ref StravaApiGateway
             Path: /weather
             Method: OPTIONS
+        OptionsSegment:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segment/{segmentId}
+            Method: OPTIONS
+        OptionsStarredSegments:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StravaApiGateway
+            Path: /segments/starred
+            Method: OPTIONS
+
+  # DynamoDB table for segment data cache
+  SegmentCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "strava-plugin-cache-segments-${StageName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: segmentId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: segmentId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # DynamoDB table for weather data cache
+  WeatherCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "strava-plugin-cache-weather-${StageName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: locationKey
+          AttributeType: S
+      KeySchema:
+        - AttributeName: locationKey
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
 
 # Output values
 Outputs:
@@ -88,3 +161,9 @@ Outputs:
   OAuthFunctionArn:
     Description: Lambda function ARN
     Value: !GetAtt StravaOAuthFunction.Arn
+  SegmentCacheTable:
+    Description: DynamoDB table for segment cache
+    Value: !Ref SegmentCacheTable
+  WeatherCacheTable:
+    Description: DynamoDB table for weather cache
+    Value: !Ref WeatherCacheTable

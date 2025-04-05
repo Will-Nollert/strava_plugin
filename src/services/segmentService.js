@@ -1,8 +1,8 @@
 // src/services/segmentService.js
 import { getSegmentDetails, decodePolyline } from "../api.js";
 
-// Cache for segment details to avoid repeated API calls
-const segmentCache = new Map();
+// In-memory cache for segment details to reduce API calls during a session
+const sessionCache = new Map();
 
 /**
  * Get segment details with caching
@@ -10,15 +10,16 @@ const segmentCache = new Map();
  * @returns {Promise<Object>} Segment details
  */
 async function getSegmentWithCache(segmentId) {
-  // Check if segment is in cache
-  if (segmentCache.has(segmentId)) {
-    return segmentCache.get(segmentId);
+  // Check if segment is in session cache
+  if (sessionCache.has(segmentId)) {
+    return sessionCache.get(segmentId);
   }
 
   try {
+    // getSegmentDetails already uses the backend cache
     const segment = await getSegmentDetails(segmentId);
 
-    // Extract start and end points from polyline if available
+    // Process segment data
     if (segment.map && segment.map.polyline) {
       // For simplicity we'll use the start point for weather
       const decodedPolyline = decodePolyline(segment.map.polyline);
@@ -35,8 +36,8 @@ async function getSegmentWithCache(segmentId) {
       }
     }
 
-    // Cache the result
-    segmentCache.set(segmentId, segment);
+    // Cache the result in session
+    sessionCache.set(segmentId, segment);
 
     return segment;
   } catch (error) {
@@ -64,4 +65,11 @@ function calculateDirection(start, end) {
   return (bearing + 360) % 360; // Normalize to 0-359
 }
 
-export { getSegmentWithCache };
+/**
+ * Clear the in-memory session cache
+ */
+function clearSegmentCache() {
+  sessionCache.clear();
+}
+
+export { getSegmentWithCache, clearSegmentCache };

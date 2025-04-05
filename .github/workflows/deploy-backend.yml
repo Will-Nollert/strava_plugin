@@ -41,10 +41,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Check package files before cleanup
+        run: |
+          cd backend
+          echo "Checking if package.json exists:"
+          ls -la package.json || echo "package.json not found"
+          echo "Checking if package-lock.json exists:"
+          ls -la package-lock.json || echo "package-lock.json not found"
+
+      - name: Remove package-lock.json and reinstall
+        run: |
+          cd backend
+          rm -f package-lock.json
+          echo "Package lock file removed"
+
       - name: Install backend dependencies
         run: |
           cd backend
-          npm ci --production
+          npm install --production
 
       - name: Build with SAM
         run: |
@@ -69,7 +83,7 @@ jobs:
             --stack-name strava-plugin-oauth-proxy \
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
-            --parameter-overrides "StravaClientSecret=${{ secrets.STRAVA_CLIENT_SECRET }} OpenWeatherApiKey=${{ secrets.OPENWEATHER_API_KEY }}" \
+            --parameter-overrides "StravaClientSecret=${{ secrets.STRAVA_CLIENT_SECRET }} OpenWeatherApiKey=${{ secrets.OPENWEATHER_API_KEY }} SegmentCacheTTL=604800 WeatherCacheTTL=3600" \
             --resolve-s3
 
       - name: Get API Gateway URL
