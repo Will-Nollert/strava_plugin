@@ -1,12 +1,15 @@
 // src/contentScripts/starredSegments.js
-import { getCurrentWeather } from "../services/weatherApi.js";
-import { analyzeWeather, AssistLevel } from "../services/weatherAnalysis.js";
-import { getSegmentWithCache } from "../services/segmentService.js";
-
 console.log("Strava Plugin: Content script loaded for starred segments page");
 
 // Map to store weather data and analysis for segments
 const segmentWeatherMap = new Map();
+
+// Constants for weather analysis levels
+const AssistLevel = {
+  FAVORABLE: "Favorable",
+  NEUTRAL: "Neutral",
+  UNFAVORABLE: "Unfavorable",
+};
 
 /**
  * Function to add the weather assist column
@@ -106,7 +109,7 @@ function updateWeatherCell(cell, analysis) {
 }
 
 /**
- * Process weather data for a segment
+ * Process weather data for a segment via background script
  * @param {string} segmentId - The segment ID
  * @returns {Promise<Object>} The weather analysis
  */
@@ -117,45 +120,33 @@ async function processSegmentWeather(segmentId) {
   }
 
   try {
-    // Get segment details including location
-    const segment = await getSegmentWithCache(segmentId);
+    // Use message passing to get weather analysis from background script
+    return new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(
+        {
+          type: "GET_SEGMENT_WEATHER",
+          segmentId: segmentId
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("Error sending message:", chrome.runtime.lastError);
+            reject(chrome.runtime.lastError);
+            return;
+          }
 
-    // If we need to extract coordinates from polyline
-    if (!segment.start_latlng && segment.map && segment.map.polyline) {
-      const coordinates = decodePolyline(segment.map.polyline);
-      if (coordinates.length > 0) {
-        segment.start_latlng = coordinates[0];
+          if (!response || !response.success) {
+            const error = response?.error || "Unknown error";
+            console.error(`Error getting segment weather: ${error}`);
+            reject(new Error(error));
+            return;
+          }
 
-        // Calculate rough direction if we have start and end points
-        if (coordinates.length > 1) {
-          segment.end_latlng = coordinates[coordinates.length - 1];
-
-          // Calculate direction (simplified calculation)
-          const [startLat, startLng] = coordinates[0];
-          const [endLat, endLng] = coordinates[coordinates.length - 1];
-          const deltaY = endLng - startLng;
-          const deltaX = endLat - startLat;
-          segment.direction = (Math.atan2(deltaY, deltaX) * 180) / Math.PI;
+          // Cache the result locally
+          segmentWeatherMap.set(segmentId, response.analysis);
+          resolve(response.analysis);
         }
-      }
-    }
-
-    // Get current weather for the segment location
-    let weather;
-    if (segment.start_latlng) {
-      const [lat, lng] = segment.start_latlng;
-      weather = await getCurrentWeather(lat, lng);
-    } else {
-      throw new Error("Segment location data not available");
-    }
-
-    // Analyze the weather conditions for this segment
-    const analysis = analyzeWeather(weather, segment);
-
-    // Cache the result
-    segmentWeatherMap.set(segmentId, analysis);
-
-    return analysis;
+      );
+    });
   } catch (error) {
     console.error(`Error getting weather for segment ${segmentId}:`, error);
     return null;
@@ -186,52 +177,3 @@ const observer = new MutationObserver(function (mutations) {
 
 // Start observing the document with the configured parameters
 observer.observe(document.body, { childList: true, subtree: true });
-
-// Helper function to decode Google polylines
-function decodePolyline(encoded) {
-  let index = 0;
-  const len = encoded.length;
-  let lat = 0;
-  let lng = 0;
-  const coordinates = [];
-
-  while (index < len) {
-    let b;
-    let shift = 0;
-    let result = 0;
-
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-
-    const dlat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += dlat;
-
-    shift = 0;
-    result = 0;
-
-    do {
-      b = encoded.charCodeAt(index++) - 63;
-      result |= (b & 0x1f) << shift;
-      shift += 5;
-    } while (b >= 0x20);
-
-    const dlng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += dlng;
-
-    coordinates.push([lat * 1e-5, lng * 1e-5]);
-  }
-
-  return coordinates;
-}
-
-// Export functions for testing
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    addWeatherAssistColumn,
-    processSegmentWeather,
-    updateWeatherCell,
-  };
-}

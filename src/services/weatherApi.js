@@ -2,13 +2,14 @@
 import CONFIG from "../config.js";
 
 /**
- * Gets current weather data for a specific location
+ * Gets current weather data for a specific location, using cache when available
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @returns {Promise<Object>} Weather data
  */
 async function getCurrentWeather(lat, lon) {
   try {
+    // The backend proxy uses the cache for us automatically
     const url = new URL(`${CONFIG.AUTH_PROXY_URL}/weather`);
     url.searchParams.append("lat", lat);
     url.searchParams.append("lon", lon);
@@ -27,7 +28,7 @@ async function getCurrentWeather(lat, lon) {
 }
 
 /**
- * Gets historical weather data for a specific location and time
+ * Gets historical weather data for a specific location and time, using cache when available
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
  * @param {number} timestamp - Unix timestamp
@@ -35,6 +36,7 @@ async function getCurrentWeather(lat, lon) {
  */
 async function getHistoricalWeather(lat, lon, timestamp) {
   try {
+    // The backend proxy uses the cache for us automatically
     const url = new URL(`${CONFIG.AUTH_PROXY_URL}/weather`);
     url.searchParams.append("lat", lat);
     url.searchParams.append("lon", lon);

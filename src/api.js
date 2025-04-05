@@ -1,4 +1,4 @@
-// src/api.js - Service for interacting with Strava API
+// src/api.js - Service for interacting with Strava API with cache support
 import { getValidAccessToken } from "./auth.js";
 import CONFIG from "./config.js";
 
@@ -42,22 +42,63 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 /**
+ * Makes a request to our backend proxy with caching support
+ * @param {string} endpoint - API endpoint (without base URL)
+ * @param {Object} options - Fetch API options
+ * @returns {Promise<any>} Response data 
+ */
+async function backendRequest(endpoint, options = {}) {
+  try {
+    const accessToken = await getValidAccessToken();
+
+    const url = `${CONFIG.AUTH_PROXY_URL}${endpoint}`;
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      // Handle 401 specially as it likely means token issues
+      if (response.status === 401) {
+        throw new Error("Authentication failed. Please log in again.");
+      }
+
+      const errorData = await response.json();
+      throw new Error(errorData.message || response.statusText);
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("Backend request error:", error);
+    throw error;
+  }
+}
+
+/**
  * Gets a list of starred segments for the logged-in user
  * @param {number} page - Page number for pagination
  * @param {number} perPage - Number of items per page
  * @returns {Promise<Array>} List of starred segments
  */
 async function getStarredSegments(page = 1, perPage = 30) {
-  return apiRequest(`/segments/starred?page=${page}&per_page=${perPage}`);
+  // For starred segments, we'll use the backend proxy which supports caching
+  return backendRequest(`/segments/starred?page=${page}&per_page=${perPage}`);
 }
 
 /**
- * Gets detailed information about a specific segment
+ * Gets detailed information about a specific segment, using cache when available
  * @param {string} segmentId - ID of the segment
  * @returns {Promise<Object>} Segment details
  */
 async function getSegmentDetails(segmentId) {
-  return apiRequest(`/segments/${segmentId}`);
+  // Using the backend proxy with caching for segment details
+  return backendRequest(`/segment/${segmentId}`);
 }
 
 /**
@@ -65,6 +106,7 @@ async function getSegmentDetails(segmentId) {
  * @returns {Promise<Object>} Athlete profile
  */
 async function getAthleteProfile() {
+  // Athlete profiles should be fresh, so we'll use the direct API
   return apiRequest("/athlete");
 }
 
@@ -136,8 +178,7 @@ function decodePolyline(encodedPolyline) {
  */
 function convertToGPX(coordinates, name = "Strava Segment") {
   let gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx creator="Strava Plugin v${
-  CONFIG.VERSION
+<gpx creator="Strava Plugin v${CONFIG.VERSION
 }" version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
   <trk>
     <name>${escapeXml(name)}</name>
