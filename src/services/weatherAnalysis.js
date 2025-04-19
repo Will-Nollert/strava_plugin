@@ -1,4 +1,5 @@
 // src/services/weatherAnalysis.js
+import { calculateWeightedWindAssistance } from "./directionalAnalysis.js";
 
 /**
  * Segment types that affect how weather assistance is calculated
@@ -48,18 +49,29 @@ function determineSegmentType(segment) {
 /**
  * Calculate the wind assistance based on wind and segment data
  * @param {Object} wind - Wind data (speed and direction)
- * @param {Object} segment - Segment data (including direction)
+ * @param {Object} segment - Segment data (including direction and polyline)
  * @returns {number} Wind assistance factor (-1 to 1)
  */
 function calculateWindAssistance(wind, segment) {
-  if (!wind || !wind.speed || wind.speed < 1) {
+  // No wind speed or very light wind
+  if (!wind || !wind.wind_speed || wind.wind_speed < 1) {
     return 0; // No significant wind
   }
 
-  // If segment has directional data, use it
+  // Check if we have directional analysis data
+  if (segment.directionalAnalysis) {
+    // Use the weighted analysis
+    const windImpact = calculateWeightedWindAssistance({
+      speed: wind.wind_speed,
+      deg: wind.wind_deg
+    }, segment.directionalAnalysis);
+    return windImpact.overallImpact;
+  }
+  
+  // Fall back to the original simple calculation if we don't have directional analysis
   if (segment.direction) {
     // Calculate the angle between wind direction and segment direction
-    const windDirection = wind.deg;
+    const windDirection = wind.wind_deg;
     const segmentDirection = segment.direction;
 
     // Normalize the angle difference to 0-180 degrees
@@ -77,8 +89,8 @@ function calculateWindAssistance(wind, segment) {
     }
   }
 
-  // For segments without direction data, we just use wind speed as a general factor
-  if (wind.speed > 8) {
+  // For segments without any direction data, use wind speed as a general factor
+  if (wind.wind_speed > 8) {
     return 0.5; // Stronger wind has more potential for assistance (or hindrance)
   } else {
     return 0.2; // Light wind has less impact

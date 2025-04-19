@@ -1,25 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
-console.log('========================================');
-console.log('STARTING ICON CONVERSION SCRIPT');
-console.log('========================================');
-console.log('Current time:', new Date().toLocaleTimeString());
-console.log('Current directory:', process.cwd());
 
 // Make sure these directories exist
 const sourceDir = path.join(__dirname, '../public/images');
-console.log('Source directory:', sourceDir);
 
 if (!fs.existsSync(sourceDir)) {
-  console.log('Creating source directory as it does not exist');
   fs.mkdirSync(sourceDir, { recursive: true });
 } else {
   console.log('Source directory exists');
 }
 
 // List files in the source directory
-console.log('Files in source directory:');
 try {
   const files = fs.readdirSync(sourceDir);
   files.forEach(file => console.log(`- ${file}`));
