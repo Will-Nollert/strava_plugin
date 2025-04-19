@@ -9,6 +9,8 @@ import {
 import {
   analyzeWeather
 } from "./services/weatherAnalysis.js";
+import { analyzeSegmentDirection } from "./services/directionalAnalysis.js";
+
 
 console.log("Strava Plugin Background Service Worker Initialized");
 
@@ -83,18 +85,23 @@ async function getSegmentWithCache(segmentId) {
 
     // Process polyline if available
     if (segment.map && segment.map.polyline) {
-      // For simplicity we'll use the first point for weather
+      // Decode the polyline
       const decodedPolyline = decodePolyline(segment.map.polyline);
+
       if (decodedPolyline.length > 0) {
+        // Save start point
         const startPoint = decodedPolyline[0];
         segment.start_latlng = startPoint;
 
-        // Calculate rough direction if we have start and end points
+        // Calculate rough direction for backwards compatibility
         if (decodedPolyline.length > 1) {
           const endPoint = decodedPolyline[decodedPolyline.length - 1];
           segment.end_latlng = endPoint;
           segment.direction = calculateDirection(startPoint, endPoint);
         }
+
+        // Perform the new weighted directional analysis
+        segment.directionalAnalysis = analyzeSegmentDirection(decodedPolyline);
       }
     }
 
@@ -145,13 +152,54 @@ async function handleSegmentWeather(segmentId) {
     const weather = await getCurrentWeather(lat, lng);
 
     // Analyze weather conditions for this segment
-    return analyzeWeather(weather, segment);
+    const analysis = analyzeWeather(weather, segment);
+    // Add raw weather data for display in popover
+    analysis.weatherData = {
+      temperature: weather.current?.temp,
+      windSpeed: weather.current?.wind_speed,
+      windDirection: weather.current?.wind_deg,
+      windGust: weather.current?.wind_gust,
+      humidity: weather.current?.humidity,
+      precipitation: weather.current?.rain ? weather.current.rain["1h"] : 0,
+      conditions: weather.current?.weather?.[0]?.description || "Unknown"
+    };
+
+    // Add directional analysis data
+    analysis.directionalAnalysis = segment.directionalAnalysis;
+
+    // Add wind specific analysis detail
+    analysis.windAnalysis = {
+      factor: analysis.factors.wind,
+      speed: weather.current?.wind_speed || 0, // Correct property name
+      direction: weather.current?.wind_deg || 0, // Correct property name
+      gust: weather.current?.wind_gust || 0, // Correct property name
+      context: determineWindContext(analysis.factors.wind, weather.current?.wind_speed || 0)
+    };
+
+    return analysis;
   } catch (error) {
     console.error(`Error processing weather for segment ${segmentId}:`, error);
     throw error;
   }
 }
 
+/**
+ * Determine descriptive context for wind conditions
+ * @param {number} windFactor - Wind assistance factor (-1 to 1)
+ * @param {number} windSpeed - Wind speed in m/s
+ * @returns {string} Wind context description
+ */
+function determineWindContext(windFactor, windSpeed) {
+  if (windSpeed < 1) {
+    return "Light wind";
+  } else if (Math.abs(windFactor) > 0.7) {
+    return windFactor > 0 ? "Strong tailwind" : "Strong headwind";
+  } else if (Math.abs(windFactor) > 0.3) {
+    return windFactor > 0 ? "Tailwind" : "Headwind";
+  } else {
+    return "Crosswind";
+  }
+}
 // Handle installation and updates
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
